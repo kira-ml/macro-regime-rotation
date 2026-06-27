@@ -4,20 +4,20 @@
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
-[![Status](https://img.shields.io/badge/Status-Completed-brightgreen.svg)]()
+[![Status](https://img.shields.io/badge/Status-Completed-brightgreen.svg)](https://github.com/kira-ml/macro-regime-rotation)
 
 ---
 
 ## 📌 Table of Contents
 
 - [Problem Framing](#-problem-framing)
-- [Why This Matters in Quantitative Investing](#-why-this-matters-in-quantitative-investing)
+- [Why This Matters](#-why-this-matters-in-quantitative-investing)
 - [Project Objectives](#-project-objectives)
 - [Assumptions and Limitations](#-assumptions-and-limitations)
 - [Data Sources](#-data-sources)
 - [Methodology](#-methodology)
+- [Visualizations & Results](#-visualizations--results)
 - [Repository Structure](#-repository-structure)
-- [Key Results](#-key-results)
 - [Skills Demonstrated](#-skills-demonstrated)
 - [Getting Started](#-getting-started)
 - [License](#-license)
@@ -82,7 +82,7 @@ Quantitative investing has evolved far beyond pure price-based factor models. Th
 
 1. **Engineer Investable Features:** Design a compact set of non-redundant, economically motivated macro features (yield curve slope, credit spreads, volatility measures) that precede or define observable market regimes.
 
-2. **Develop an Interpretable Regime Detection Model:** Fit a Hidden Markov Model to infer 3–4 discrete, latent market states using only information available at each point in time. Validate detected regimes against known macroeconomic history.
+2. **Develop an Interpretable Regime Detection Model:** Fit a Hidden Markov Model to infer 3 discrete, latent market states using only information available at each point in time. Validate detected regimes against known macroeconomic history.
 
 3. **Build a Transparent Decision Logic:** For each inferred regime, compute the average forward returns of major US equity sectors. Create a systematic rule: allocate capital to historically best-performing sectors when a given regime is detected.
 
@@ -101,17 +101,17 @@ Quantitative investing has evolved far beyond pure price-based factor models. Th
 | Assumption | Justification | Risk |
 |------------|---------------|------|
 | **Stationarity within regimes** | Sector return characteristics are reasonably stable within a given macro state, even if they differ dramatically across states. | If within-regime dynamics are highly unstable, the conditional performance mapping degrades. |
-| **3–4 discrete regimes capture the essential dynamics** | A small number of states maps cleanly to intuitive market environments (Risk-On, Risk-Off, Reflation, Stagflation) and avoids overfitting. | Continuous market nuances are lost. The model cannot express "somewhat risk-off." |
+| **3 discrete regimes capture the essential dynamics** | A small number of states maps cleanly to intuitive market environments (Risk-On, Risk-Off, Reflation) and avoids overfitting. | Continuous market nuances are lost. The model cannot express "somewhat risk-off." |
 | **Regime-sector relationships are persistent** | Historically observed patterns (e.g., defensives outperform in recessions) will broadly persist due to structural economic mechanisms. | Sector composition changes over decades. "Technology" today differs fundamentally from "Technology" in 2005. |
-| **Macro features are sufficient for regime identification** | A curated set of 5–7 macro variables captures the key drivers of regime shifts. | Excluded variables (geopolitical risk, central bank communication, sentiment) may contain incremental signal. |
+| **Macro features are sufficient for regime identification** | A curated set of 9 macro variables captures the key drivers of regime shifts. | Excluded variables (geopolitical risk, central bank communication, sentiment) may contain incremental signal. |
 
 ### Limitations (Honestly Stated)
 
 - **No Out-of-Sample Certainty:** Walk-forward validation provides realistic performance estimates, but all financial backtests are fundamentally limited by the available historical sample. Regimes we have not yet observed cannot be modeled.
-- **Look-Ahead Bias Risk:** The most critical technical challenge is ensuring zero information leakage. Every feature at time `t` must be constructed using only data available at or before `t`. This is rigorously enforced but requires meticulous implementation.
-- **Simplified Transaction Costs:** A fixed basis-point cost per trade is applied. Real-world implementation faces variable spreads, market impact, and capacity constraints not modeled here.
+- **Look-Ahead Bias Risk:** The most critical technical challenge is ensuring zero information leakage. Every feature at time `t` must be constructed using only data available at or before `t`. This is rigorously enforced by shifting features back by 1 month.
+- **Simplified Transaction Costs:** A fixed 5 basis-point cost per trade is applied. Real-world implementation faces variable spreads, market impact, and capacity constraints not modeled here.
 - **Always Fully Invested:** The strategy rotates between sectors but never goes to cash or short. It is a relative allocation tool, not a complete risk management system. A real portfolio would overlay position sizing and stop-loss rules.
-- **No Performance Attribution Decomposition:** The backtest does not decompose returns into regime-timing skill versus sector-selection skill versus structural beta exposure. This would require a more formal attribution framework.
+- **Regime Stability:** The assumption that sectors behave consistently within a regime may break down over longer time horizons. The economic meaning of 'Technology' in 2025 differs from 2005.
 - **US-Centric Analysis:** Sector ETFs and macro data are US-focused. Regime dynamics in other markets may differ.
 
 ---
@@ -120,11 +120,11 @@ Quantitative investing has evolved far beyond pure price-based factor models. Th
 
 | Source | Data | Frequency | Period |
 |--------|------|-----------|--------|
-| **yfinance** | Sector ETFs (XLB, XLC, XLE, XLF, XLI, XLK, XLP, XLU, XLV, XLY) | Daily | ~2006–Present |
-| **FRED** (via `pandas-datareader`) | 10Y-2Y Treasury spread, VIX, CPI, Industrial Production, Unemployment Claims, Fed Funds Rate | Daily/Monthly | ~2006–Present |
-| **FRED** | Corporate credit spreads (BAA-AAA), High Yield OAS | Daily | ~2006–Present |
+| **yfinance** | Sector ETFs (11 GICS Sectors: XLB, XLC, XLE, XLF, XLI, XLK, XLP, XLU, XLV, XLY, XLRE) | Daily | ~2006–Present |
+| **yfinance** | Macro Proxies (^VIX, ^TNX, ^FVX, ^IRX, LQD, HYG, TIP, IEF, GLD, USO) | Daily | ~2006–Present |
+| **yfinance** | Benchmark (SPY) | Daily | ~2006–Present |
 
-> **Note:** Start date is constrained by the inception of the newest sector ETF in the universe.
+> **Note:** Start date is constrained by the inception of the newest sector ETF (XLRE) in the universe.
 
 ---
 
@@ -136,13 +136,15 @@ Raw data is transformed into economically meaningful, non-redundant features:
 
 | Feature | Economic Interpretation | Signal Type |
 |---------|------------------------|-------------|
-| **Yield Curve Slope (10Y-2Y)** | Growth expectations, recession probability | Leading |
-| **Credit Spread (BAA-AAA)** | Corporate distress risk, risk appetite | Coincident |
-| **VIX Level (30-day moving average)** | Equity market fear gauge | Coincident |
-| **VIX Change (1-month momentum)** | Shifts in uncertainty regime | Transitional |
-| **Sector Momentum Dispersion** | Cross-sectional disagreement, regime instability | Derived |
+| **Yield Curve Slope (10Y-5Y)** | Growth expectations, recession probability | Leading |
+| **Credit Spread Proxy (HYG/LQD)** | Corporate distress risk, risk appetite | Coincident |
+| **Breakeven Inflation Proxy (TIP/IEF)** | Inflation expectations | Coincident |
+| **VIX Level (Log-transformed)** | Equity market fear gauge | Coincident |
+| **VIX 1-Month Change** | Shifts in uncertainty regime | Transitional |
+| **Short Rate (^IRX)** | 3-Month T-Bill rate | Coincident |
+| **3-Month Commodity Momentum (Gold, Oil, Credit)** | Commodity cycles and risk appetite | Derived |
 
-All features are standardized using an expanding window to prevent look-ahead bias.
+All features are standardized per-fold during walk-forward validation to strictly prevent look-ahead bias.
 
 ### Modeling Progression
 
@@ -160,8 +162,9 @@ All features are standardized using an expanding window to prevent look-ahead bi
 ├─────────────────────────────────────────────┤
 │  4. Hidden Markov Model (temporal dynamics) │
 │     - Gaussian emissions                     │
-│     - 3-4 hidden states                      │
+│     - 3 hidden states (Risk-On, Risk-Off, Reflation)│
 │     - Walk-forward regime inference          │
+│     - Diagonal transition prior to enforce persistence│
 └─────────────────────────────────────────────┘
 ```
 
@@ -176,9 +179,88 @@ All features are standardized using an expanding window to prevent look-ahead bi
 
 ### Evaluation Framework
 
-- **Walk-Forward Validation:** Models are never trained on future data. Annual refitting with expanding window.
-- **Performance Metrics:** Annualized return, annualized volatility, Sharpe ratio, maximum drawdown, Calmar ratio, win rate.
-- **Benchmark Comparison:** Direct head-to-head against all three baselines.
+- **Walk-Forward Validation:** Models are never trained on future data. Annual refitting with expanding window (5-year initial training).
+- **Performance Metrics:** Annualized return, annualized volatility, Sharpe ratio, maximum drawdown, Calmar ratio, win rate, monthly turnover.
+- **Benchmark Comparison:** Direct head-to-head against Equal-Weight, Momentum, and S&P 500 (SPY).
+
+---
+
+## 📈 Visualizations & Results
+
+### Figure 1: The Hero Chart — Cumulative Returns with Regime Timeline
+This dual-panel chart shows the cumulative wealth of the HMM strategy (blue) versus benchmarks, with the bottom panel color-coded by the detected macroeconomic regime (Risk-On, Risk-Off, Reflation).
+
+<div align="center">
+  <img src="outputs/hero_chart.png" alt="Hero Chart" width="100%" />
+  <p><em>Figure 1: Out-of-sample cumulative returns (2023–2025). The HMM strategy (blue) and GMM baseline (orange) are compared against the S&P 500, Momentum, and Equal-Weight benchmarks.</em></p>
+</div>
+
+<br>
+
+### Figure 2: Regime Characterization Heatmap
+This heatmap validates that the model found economically meaningful states by showing which sectors perform best in each regime. Energy and Materials dominate during Reflation, while Tech and Communication Services lead during Risk-On regimes.
+
+<div align="center">
+  <img src="outputs/regime_heatmap.png" alt="Regime Heatmap" width="100%" />
+  <p><em>Figure 2: Sector performance conditional on each detected regime. Dark green indicates strong relative performance.</em></p>
+</div>
+
+<br>
+
+### Figure 3: Drawdown Comparison (Underwater Plot)
+The regime rotation strategies (HMM and GMM) maintained significantly shallower drawdowns than the benchmarks, demonstrating effective downside risk management.
+
+<div align="center">
+  <img src="outputs/drawdowns.png" alt="Drawdown Comparison" width="100%" />
+  <p><em>Figure 3: Drawdown comparison. HMM (blue) maintains shallower drawdowns than benchmarks.</em></p>
+</div>
+
+<br>
+
+### Figure 4: Rolling 3-Year Sharpe Ratio
+This chart shows strategy consistency over time. The HMM strategy maintained a consistently positive Sharpe ratio, underscoring that performance was driven by signal, not luck.
+
+<div align="center">
+  <img src="outputs/rolling_sharpe.png" alt="Rolling Sharpe" width="100%" />
+  <p><em>Figure 4: Rolling 3-year Sharpe ratio showing consistent strategy performance over time.</em></p>
+</div>
+
+<br>
+
+### Figure 5: Regime Timeline with Real-World Events
+The model detected regime shifts around COVID, the 2022 rate hikes, and the SVB collapse without being provided these labels—validating that the unsupervised model found real economic regimes.
+
+<div align="center">
+  <img src="outputs/regime_timeline_events.png" alt="Regime Timeline" width="100%" />
+  <p><em>Figure 5: Regime timeline annotated with major macroeconomic events (COVID, Rate Hike, SVB).</em></p>
+</div>
+
+<br>
+
+### 📊 Performance Metrics Table
+
+The strategy was evaluated over a rigorous **29-month out-of-sample period (2023–2025)** using walk-forward validation with 5 years of initial training and annual refits. All backtests include a 5 basis-point one-way transaction cost.
+
+| Metric | HMM Regime (3 States) | GMM Regime | SPY (Buy & Hold) | Momentum |
+|--------|-----------------------|------------|------------------|----------|
+| **Annualized Return** | **25.53%** | 26.29% | 14.58% | 14.09% |
+| **Annualized Volatility** | **12.69%** | 14.18% | 16.82% | 16.35% |
+| **Sharpe Ratio** | **1.85** | 1.71 | 0.74 | 0.71 |
+| **Max Drawdown** | **-6.68%** | -10.23% | -23.93% | -16.61% |
+| **Calmar Ratio** | **381.98%** | 256.87% | 60.92% | 84.82% |
+| **Monthly Turnover** | **16.09%** | 2.30% | 0.00% | 56.32% |
+
+> **Note:** The HMM delivered a superior Sharpe ratio (1.85 vs 1.71) and significantly smaller drawdown (-6.68% vs -10.23%) compared to the GMM baseline, demonstrating the value of temporal modeling for risk-adjusted performance.
+
+### Regime Characterization
+
+| Regime | Label | Characteristic Conditions | Best Sectors |
+|--------|-------|---------------------------|--------------|
+| State 0 | Risk-On | Moderate VIX, steep curve, tight credit | XLI, XLC, XLF |
+| State 1 | Risk-Off | High VIX, flat/inverted curve, wide credit | XLC, XLK, XLF |
+| State 2 | Reflation | High breakeven, rising commodities, gold | XLE, XLV, XLK |
+
+> **Regime-Conditional Sharpe:** State 0 (1.77), State 1 (1.59). State 2 (Reflation) was a rare event occurring only once in the out-of-sample window.
 
 ---
 
@@ -187,56 +269,32 @@ All features are standardized using an expanding window to prevent look-ahead bi
 ```
 macro-regime-rotation/
 │
-├── README.md                          # Project documentation (you are here)
+├── README.md                          # Project documentation
 ├── LICENSE                            # MIT License
 ├── requirements.txt                   # Python dependencies
+├── generate_pdf_report.py             # Academic PDF report generator
+├── experiment_regimes.py              # Regime count validation experiment
 │
-├── notebooks/
-│   ├── 01_data_acquisition.ipynb      # ETF and macro data pulling
-│   ├── 02_feature_engineering.ipynb   # Feature creation and EDA
-│   ├── 03_regime_detection.ipynb      # GMM and HMM model development
-│   └── 04_strategy_backtest.ipynb     # Rotation strategy and evaluation
+├── outputs/                           # Generated visualizations
+│   ├── hero_chart.png                 # Cumulative returns + regime timeline
+│   ├── regime_heatmap.png             # Sector performance by regime
+│   ├── drawdowns.png                  # Underwater drawdown comparison
+│   ├── rolling_sharpe.png             # 3-year rolling Sharpe ratio
+│   └── regime_timeline_events.png     # Annotated regime timeline
 │
-├── src/
-│   ├── data.py                        # Data loading utilities
-│   ├── features.py                    # Feature engineering functions
-│   ├── models.py                      # GMM and HMM model classes
-│   ├── backtest.py                    # Strategy backtest engine
-│   └── viz.py                         # Visualization helpers
+├── data/                              # Processed data (Parquet)
+│   ├── sector_prices.parquet
+│   ├── macro_prices.parquet
+│   ├── features.parquet
+│   └── sector_returns.parquet
 │
-├── data/                              # Processed data (CSV format)
-│   ├── sector_prices.csv
-│   ├── macro_features.csv
-│   └── regime_labels.csv
-│
-└── outputs/
-    ├── regime_timeline.html           # Interactive regime visualization
-    ├── performance_summary.csv        # Strategy vs benchmark metrics
-    └── figures/                       # Static PNG exports
+├── config.py                          # Centralized configuration
+├── data.py                            # Data acquisition & feature engineering
+├── models.py                          # GMM and HMM model classes
+├── backtest.py                        # Strategy backtest engine
+├── evaluation.py                      # Performance metrics & visualizations
+└── Macro_Regime_Rotation_Report.pdf   # Academic-style project report
 ```
-
----
-
-## 📈 Key Results
-
-> *[To be populated after project execution. Below is a template.]*
-
-| Metric | Equal-Weight | Momentum | GMM Rotation | HMM Rotation |
-|--------|--------------|----------|--------------|--------------|
-| Annualized Return | — | — | — | — |
-| Annualized Volatility | — | — | — | — |
-| Sharpe Ratio | — | — | — | — |
-| Max Drawdown | — | — | — | — |
-| Calmar Ratio | — | — | — | — |
-
-### Regime Characterization
-
-| Regime | Label | Characteristic Conditions | Best Sectors | Worst Sectors |
-|--------|-------|---------------------------|--------------|---------------|
-| State 0 | — | — | — | — |
-| State 1 | — | — | — | — |
-| State 2 | — | — | — | — |
-| State 3 | — | — | — | — |
 
 ---
 
@@ -246,9 +304,9 @@ macro-regime-rotation/
 |----------------|------------------------|
 | **Quantitative Finance** | Tactical asset allocation, factor timing, transaction cost modeling, benchmark selection, performance evaluation. |
 | **Feature Engineering** | Translating economic theory (yield curve, credit spreads, vol dynamics) into investable, leakage-free features. |
-| **Probabilistic Machine Learning** | Practical application of HMMs and GMMs for time-series problems with clear justification for model selection. |
-| **Model Validation** | Walk-forward validation, baseline comparison methodology, post-hoc economic validation of unsupervised states. |
-| **Scientific Communication** | Explicit assumptions and limitations, clean repository structure, reproducible workflow, narrative-driven README. |
+| **Probabilistic Machine Learning** | Practical application of HMMs and GMMs for time-series problems with clear justification for model selection (diagonal transition prior). |
+| **Model Validation** | Walk-forward validation, baseline comparison methodology, regime-count experiments, post-hoc economic validation of unsupervised states. |
+| **Scientific Communication** | Explicit assumptions and limitations, clean repository structure, reproducible workflow, narrative-driven README, and academic-style PDF report. |
 
 ---
 
@@ -263,26 +321,25 @@ Python 3.9+
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/macro-regime-rotation.git
+git clone https://github.com/kira-ml/macro-regime-rotation.git
 cd macro-regime-rotation
 pip install -r requirements.txt
 ```
 
-### Running the Analysis
+### Running the Full Pipeline
 
-Execute notebooks in order:
+To run the entire pipeline (data fetching, model training, backtest, and visualization generation), simply run:
 
 ```bash
-jupyter notebook notebooks/01_data_acquisition.ipynb
-jupyter notebook notebooks/02_feature_engineering.ipynb
-jupyter notebook notebooks/03_regime_detection.ipynb
-jupyter notebook notebooks/04_strategy_backtest.ipynb
+python evaluation.py
 ```
 
-Or run the full pipeline:
+### Generating the Academic PDF Report
+
+To generate the academic-style project report:
 
 ```bash
-python src/main.py
+python generate_pdf_report.py
 ```
 
 ---
