@@ -379,7 +379,6 @@ def load_dataframe(filepath):
 # ============================================================================
 # MAIN ENTRY POINT
 # ============================================================================
-
 def get_regime_data(force_refresh=False):
     """
     Main entry point for data acquisition and feature engineering.
@@ -403,6 +402,14 @@ def get_regime_data(force_refresh=False):
     print("=" * 60)
     print("MACRO-REGIME-ROTATION: DATA PIPELINE")
     print("=" * 60)
+    
+    # --- Auto-refresh if cached data is stale (> 30 days old) ---
+    if not force_refresh and SECTOR_PRICES_FILE.exists():
+        import datetime
+        mod_time = datetime.datetime.fromtimestamp(SECTOR_PRICES_FILE.stat().st_mtime)
+        if (datetime.datetime.now() - mod_time).days > 30:
+            print("Cached data is stale (>30 days). Forcing refresh...")
+            force_refresh = True
     
     # Check if we have saved data
     if not force_refresh and FEATURES_FILE.exists() and SECTOR_RETURNS_FILE.exists():
@@ -471,7 +478,10 @@ def get_regime_data(force_refresh=False):
     sector_prices = sector_prices.loc[common_idx]
     available_mask = available_mask.loc[common_idx]
     
-    # Standardize features (using full dataset for now, walk-forward handles timing)
+    # CRITICAL FIX: Drop NaN explicitly before standardization
+    features_raw = features_raw.dropna()
+    
+    # Standardize features
     features, _ = standardize_features(features_raw)
     
     # ---------- STEP 5: Compute sector returns ----------
@@ -479,6 +489,15 @@ def get_regime_data(force_refresh=False):
     sector_returns = sector_prices.pct_change().dropna()
     
     # Align features and returns (drop first month where returns are NaN)
+    common_idx = features.index.intersection(sector_returns.index)
+    features = features.loc[common_idx]
+    sector_returns = sector_returns.loc[common_idx]
+    available_mask = available_mask.loc[common_idx]
+    
+    # ---------- CRITICAL FIX: Shift features to prevent look-ahead bias ----------
+    # We shift features by 1 month to ensure they are known at the time of prediction
+    features = features.shift(1).dropna()
+    # Re-align with sector returns after the shift
     common_idx = features.index.intersection(sector_returns.index)
     features = features.loc[common_idx]
     sector_returns = sector_returns.loc[common_idx]
@@ -513,6 +532,8 @@ def get_regime_data(force_refresh=False):
             'feature_names': list(features.columns)
         }
     }
+
+
 
 # ============================================================================
 # QUICK TEST

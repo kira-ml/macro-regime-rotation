@@ -498,7 +498,6 @@ def plot_regime_timeline_annotated(predictions, sector_returns, cumulative_retur
 # ============================================================================
 # MAIN ENTRY POINT
 # ============================================================================
-
 def run_evaluation(backtest_results, predictions, regime_performance, save_plots=True):
     """
     Run complete evaluation and generate all metrics and visualizations.
@@ -546,43 +545,58 @@ def run_evaluation(backtest_results, predictions, regime_performance, save_plots
         print("\nGenerating visualizations...")
         
         # Plot 1: Hero Chart
-        fig1 = plot_hero_chart(
-            results['cumulative'],
-            predictions,
-            annotations=[
-                {'date': '2020-03-11', 'text': 'COVID'},
-                {'date': '2022-03-16', 'text': 'Rate Hike'},
-                {'date': '2023-03-10', 'text': 'SVB'}
-            ]
-        )
-        fig1.savefig(OUTPUT_DIR / "hero_chart.png", dpi=300, bbox_inches='tight')
-        print(f"  Saved: {OUTPUT_DIR}/hero_chart.png")
+        try:
+            fig1 = plot_hero_chart(
+                results['cumulative'],
+                predictions,
+                annotations=[
+                    {'date': '2020-03-11', 'text': 'COVID'},
+                    {'date': '2022-03-16', 'text': 'Rate Hike'},
+                    {'date': '2023-03-10', 'text': 'SVB'}
+                ]
+            )
+            fig1.savefig(OUTPUT_DIR / "hero_chart.png", dpi=300, bbox_inches='tight')
+            print(f"  Saved: {OUTPUT_DIR}/hero_chart.png")
+        except Exception as e:
+            print(f"  WARNING: Could not generate hero chart: {e}")
         
         # Plot 2: Regime Heatmap
-        if regime_performance is not None and not regime_performance.empty:
-            fig2 = plot_regime_heatmap(regime_performance)
-            fig2.savefig(OUTPUT_DIR / "regime_heatmap.png", dpi=300, bbox_inches='tight')
-            print(f"  Saved: {OUTPUT_DIR}/regime_heatmap.png")
+        try:
+            if regime_performance is not None and not regime_performance.empty:
+                fig2 = plot_regime_heatmap(regime_performance)
+                fig2.savefig(OUTPUT_DIR / "regime_heatmap.png", dpi=300, bbox_inches='tight')
+                print(f"  Saved: {OUTPUT_DIR}/regime_heatmap.png")
+        except Exception as e:
+            print(f"  WARNING: Could not generate regime heatmap: {e}")
         
         # Plot 3: Drawdown Comparison
-        fig3 = plot_drawdown_comparison(results['drawdowns'])
-        fig3.savefig(OUTPUT_DIR / "drawdowns.png", dpi=300, bbox_inches='tight')
-        print(f"  Saved: {OUTPUT_DIR}/drawdowns.png")
+        try:
+            fig3 = plot_drawdown_comparison(results['drawdowns'])
+            fig3.savefig(OUTPUT_DIR / "drawdowns.png", dpi=300, bbox_inches='tight')
+            print(f"  Saved: {OUTPUT_DIR}/drawdowns.png")
+        except Exception as e:
+            print(f"  WARNING: Could not generate drawdown chart: {e}")
         
         # Plot 4: Rolling Sharpe
-        if rolling_sharpe_dict:
-            fig4 = plot_rolling_sharpe(rolling_sharpe_dict)
-            fig4.savefig(OUTPUT_DIR / "rolling_sharpe.png", dpi=300, bbox_inches='tight')
-            print(f"  Saved: {OUTPUT_DIR}/rolling_sharpe.png")
+        try:
+            if rolling_sharpe_dict:
+                fig4 = plot_rolling_sharpe(rolling_sharpe_dict)
+                fig4.savefig(OUTPUT_DIR / "rolling_sharpe.png", dpi=300, bbox_inches='tight')
+                print(f"  Saved: {OUTPUT_DIR}/rolling_sharpe.png")
+        except Exception as e:
+            print(f"  WARNING: Could not generate rolling sharpe chart: {e}")
         
         # Plot 5: Annotated Timeline
-        fig5 = plot_regime_timeline_annotated(
-            predictions,
-            results.get('hmm_strategy', {}).get('returns', pd.Series()),
-            results['cumulative']
-        )
-        fig5.savefig(OUTPUT_DIR / "regime_timeline_events.png", dpi=300, bbox_inches='tight')
-        print(f"  Saved: {OUTPUT_DIR}/regime_timeline_events.png")
+        try:
+            fig5 = plot_regime_timeline_annotated(
+                predictions,
+                results.get('hmm_strategy', {}).get('returns', pd.Series()),
+                results['cumulative']
+            )
+            fig5.savefig(OUTPUT_DIR / "regime_timeline_events.png", dpi=300, bbox_inches='tight')
+            print(f"  Saved: {OUTPUT_DIR}/regime_timeline_events.png")
+        except Exception as e:
+            print(f"  WARNING: Could not generate regime timeline: {e}")
         
         plt.close('all')
     
@@ -593,8 +607,6 @@ def run_evaluation(backtest_results, predictions, regime_performance, save_plots
         'rolling_sharpe': rolling_sharpe_dict,
         'turnover': turnover_dict
     }
-
-
 # ============================================================================
 # QUICK TEST
 # ============================================================================

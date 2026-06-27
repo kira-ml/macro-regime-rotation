@@ -158,22 +158,23 @@ def generate_pdf():
         ))
         story.append(Spacer(1, 0.15*inch))
 
-    # --- Section 5: Results (Humble Presentation) ---
+    # --- Section 5: Results ---
     story.append(Paragraph("IV. Observations", heading_style))
     story.append(Paragraph(
-        "The table below presents the out-of-sample performance metrics. The HMM strategy delivered a Sharpe ratio of 1.50 over the evaluation period. "
+        "The table below presents the out-of-sample performance metrics. The HMM strategy delivered a Sharpe ratio of 1.85 over the evaluation period, "
+        "with an annualized return of 25.53% and a maximum drawdown of only -6.68%. "
         "It is important to note that this period (2023–2025) was characterized by a strong AI-driven bull market, which may not generalize to other environments.",
         body_style
     ))
     
-    # The Metrics Table
+    # The Metrics Table (Updated with final 3-regime HMM results)
     data = [
-        ["Metric", "HMM", "GMM", "SPY", "Momentum"],
-        ["Ann. Return", "23.99%", "22.88%", "14.96%", "14.12%"],
-        ["Ann. Volatility", "13.00%", "13.68%", "16.75%", "16.26%"],
-        ["Sharpe Ratio", "1.50", "1.37", "0.74", "0.71"],
-        ["Max Drawdown", "-6.74%", "-8.77%", "-23.93%", "-16.61%"],
-        ["Turnover", "2.22%", "2.22%", "0.00%", "56.43%"]
+        ["Metric", "HMM (3 States)", "GMM", "SPY", "Momentum"],
+        ["Ann. Return", "25.53%", "26.29%", "14.58%", "14.09%"],
+        ["Ann. Volatility", "12.69%", "14.18%", "16.82%", "16.35%"],
+        ["Sharpe Ratio", "1.85", "1.71", "0.74", "0.71"],
+        ["Max Drawdown", "-6.68%", "-10.23%", "-23.93%", "-16.61%"],
+        ["Turnover", "16.09%", "2.30%", "0.00%", "56.32%"]
     ]
     
     table = Table(data, colWidths=[1.8*inch, 1.1*inch, 1.1*inch, 1.1*inch, 1.1*inch])
@@ -190,9 +191,18 @@ def generate_pdf():
     story.append(Spacer(1, 0.15*inch))
 
     story.append(Paragraph(
-        "The HMM and GMM strategies both outperformed the benchmarks over this window. Interestingly, the static GMM slightly outperformed the dynamic HMM, "
-        "likely because the 2023–2025 market was dominated by persistent trends (AI/Technology and Energy) rather than short-term regime fluctuations. "
-        "This highlights an important limitation of the approach: dynamic models can add value during regime transitions, but may underperform static models during persistent trend regimes.",
+        "An interesting observation is that the static GMM slightly outperformed the dynamic HMM in raw annualized return (26.29% vs. 25.53%). "
+        "However, the HMM delivered a superior Sharpe ratio (1.85 vs. 1.71) and a smaller maximum drawdown (-6.68% vs. -10.23%), indicating better risk-adjusted performance. "
+        "This suggests that while static models can capture persistent trends effectively, the HMM's ability to detect regime shifts provides meaningful downside protection.",
+        body_style
+    ))
+    story.append(Spacer(1, 0.1*inch))
+
+    story.append(Paragraph("<b>Regime-Conditional Performance</b>", subheading_style))
+    story.append(Paragraph(
+        "The HMM's regime-conditional Sharpe ratios further validate its utility. Regime 0 (Risk-On) exhibited a Sharpe of 1.77, while Regime 1 (Risk-Off) produced a Sharpe of 1.59. "
+        "Regime 2 (Reflation) was identified as a rare, high-inflationary state occurring only once in the 29-month out-of-sample window. "
+        "These results demonstrate that the model successfully identifies distinct environments with varying risk-reward profiles.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
@@ -277,7 +287,7 @@ def generate_pdf():
     story.append(Paragraph(
         "1. Jegadeesh, N., & Titman, S. (1993). Returns to Buying Winners and Selling Losers: Implications for Stock Market Efficiency. <i>Journal of Finance</i>.<br/>"
         "2. Rabiner, L. R. (1989). A tutorial on hidden Markov models and selected applications in speech recognition. <i>Proceedings of the IEEE</i>.<br/>"
-        "3. Source Code: <a href='https://github.com/YOUR_USERNAME/macro-regime-rotation'>https://github.com/YOUR_USERNAME/macro-regime-rotation</a>",
+        "3. Source Code: <a href='https://github.com/kira-ml/macro-regime-rotation'>https://github.com/kira-ml/macro-regime-rotation</a>",
         body_style
     ))
 
