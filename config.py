@@ -65,8 +65,11 @@ MACRO_PROXIES = {
     "USO":  "Oil ETF (Commodity Cycle Proxy)",
 }
 
+# Define SPY separately (Benchmark, not a macro proxy)
+BENCHMARK_ETF = "SPY"  # <-- NEW
+
 # All tickers combined (useful for yfinance downloads)
-ALL_TICKERS = list(SECTOR_ETFS.keys()) + list(MACRO_PROXIES.keys())
+ALL_TICKERS = list(SECTOR_ETFS.keys()) + list(MACRO_PROXIES.keys()) + [BENCHMARK_ETF]  # <-- UPDATED
 
 
 # ============================================================================

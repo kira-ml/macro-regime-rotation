@@ -29,6 +29,11 @@ plotly>=5.17.0          # For interactive regime timeline
 kaleido>=0.2.1          # For static export of plotly figures (PNG/PDF)
 
 # ============================================================================
+# PDF Generation (Academic Research Paper Style)
+# ============================================================================
+reportlab>=4.2.0         # For generating the academic-style PDF report
+
+# ============================================================================
 # Jupyter Support
 # ============================================================================
 jupyter>=1.0.0

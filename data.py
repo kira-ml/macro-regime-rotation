@@ -438,8 +438,14 @@ def get_regime_data(force_refresh=False):
     sector_prices = all_prices[SECTOR_ETFS.keys()]
     macro_prices = all_prices[MACRO_PROXIES.keys()]
     
+    # Add SPY to macro_prices (so it gets saved for the backtest)
+    from config import BENCHMARK_ETF
+    if BENCHMARK_ETF in all_prices.columns:
+        macro_prices[BENCHMARK_ETF] = all_prices[BENCHMARK_ETF]
+        print(f"  Added {BENCHMARK_ETF} to macro dataset for benchmarking")
+    
     print(f"  Sectors: {len(sector_prices.columns)}")
-    print(f"  Macro: {len(macro_prices.columns)}")
+    print(f"  Macro + Benchmarks: {len(macro_prices.columns)}")
     
     # ---------- STEP 2: Resample to monthly ----------
     print("\n[2/5] Resampling to month-end...")
@@ -507,7 +513,6 @@ def get_regime_data(force_refresh=False):
             'feature_names': list(features.columns)
         }
     }
-
 
 # ============================================================================
 # QUICK TEST

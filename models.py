@@ -93,14 +93,15 @@ def fit_hmm(features, n_regimes=N_REGIMES, random_state=RANDOM_STATE):
     # Convert to numpy array
     X = features.values
     
-    # Fit HMM
+    # Fit HMM with strong diagonal prior (forces persistence)
     model = hmm.GaussianHMM(
         n_components=n_regimes,
         covariance_type='full',
         random_state=random_state,
         n_iter=1000,
         tol=1e-4,
-        init_params='stmc'  # Initialize means, transitions, covariances
+        init_params='stmc',  # Initialize means, transitions, covariances
+        transmat_prior=10.0  # <--- NEW: Forces the model to stay in regimes longer
     )
     model.fit(X)
     
@@ -124,8 +125,6 @@ def fit_hmm(features, n_regimes=N_REGIMES, random_state=RANDOM_STATE):
         'transition_matrix': model.transmat_,
         'means': model.means_
     }
-
-
 # ============================================================================
 # REGIME PREDICTION
 # ============================================================================

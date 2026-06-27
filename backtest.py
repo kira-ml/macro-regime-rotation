@@ -297,6 +297,45 @@ def run_momentum_benchmark(sector_returns, lookback=MOMENTUM_LOOKBACK_MONTHS,
     }
 
 
+
+
+def run_spy_benchmark(sector_returns, spy_prices):
+    """
+    Buy & Hold SPY benchmark.
+    
+    Parameters:
+    -----------
+    sector_returns : pd.DataFrame
+        Monthly sector returns (used for index alignment)
+    spy_prices : pd.Series or pd.DataFrame
+        SPY monthly prices
+    
+    Returns:
+    --------
+    dict : {'returns': pd.Series, 'weights': pd.DataFrame}
+    """
+    # Convert to DataFrame if it's a Series
+    if isinstance(spy_prices, pd.Series):
+        spy_prices = spy_prices.to_frame('SPY')
+    
+    # Calculate SPY returns
+    spy_returns = spy_prices.pct_change().dropna()
+    
+    # Align with sector_returns index
+    common_idx = sector_returns.index.intersection(spy_returns.index)
+    spy_returns = spy_returns.loc[common_idx]
+    
+    # Create dummy weights (SPY is 100% of the portfolio)
+    weights = pd.DataFrame(0, index=common_idx, columns=sector_returns.columns)
+    
+    return {
+        'returns': spy_returns['SPY'],
+        'weights': weights
+    }
+
+
+
+
 # ============================================================================
 # PERFORMANCE METRICS
 # ============================================================================
@@ -486,6 +525,7 @@ def plot_cumulative_returns(cumulative_returns, title="Cumulative Returns Compar
 def plot_regime_timeline(predictions, sector_returns=None, cumulative_returns=None):
     """
     Create dual-panel chart: cumulative returns (top) and regime timeline (bottom).
+    Uses 3-month rolling average to smooth the regime transitions.
     """
     # Create subplots
     fig = make_subplots(
@@ -493,7 +533,7 @@ def plot_regime_timeline(predictions, sector_returns=None, cumulative_returns=No
         shared_xaxes=True,
         vertical_spacing=0.08,
         row_heights=[0.6, 0.4],
-        subplot_titles=("Cumulative Returns", "Regime Timeline")
+        subplot_titles=("Cumulative Returns", "Regime Timeline (3-Month Smoothed)")
     )
     
     # Top: Cumulative returns
@@ -510,74 +550,48 @@ def plot_regime_timeline(predictions, sector_returns=None, cumulative_returns=No
                 row=1, col=1
             )
     
-    # Bottom: Regime timeline
+    # Bottom: Regime timeline (smoothed with 3-month rolling average)
     dates = predictions.index
     regimes = predictions.values
     
-    # Create regime blocks (color-coded)
+    # Create a DataFrame with regime indicators
+    regime_df = pd.DataFrame(index=dates)
+    regime_labels = {
+        0: 'Risk-On',
+        1: 'Risk-Off',
+        2: 'Reflation'
+    }
     regime_colors = {
         0: '#1f77b4',  # Blue
         1: '#ff7f0e',  # Orange
         2: '#2ca02c',  # Green
     }
     
-    regime_labels = {
-        0: 'Risk-On',
-        1: 'Risk-Off',
-        2: 'Reflation'
-    }
+    # Create dummy probabilities (1 for predicted state)
+    for state in range(3):
+        regime_df[f'State_{state}'] = (regimes == state).astype(float)
     
-    # Add regime shading
-    current_regime = regimes[0]
-    start_idx = 0
+    # Apply 3-month rolling average for smoothing
+    regime_df_smoothed = regime_df.rolling(window=3, min_periods=1).mean()
     
-    for i in range(1, len(regimes)):
-        if regimes[i] != current_regime:
-            # Add shaded region
-            color = regime_colors.get(current_regime, '#808080')
-            label = regime_labels.get(current_regime, f'State {current_regime}')
-            
-            fig.add_vrect(
-                x0=dates[start_idx],
-                x1=dates[i-1],
+    # Plot smoothed probabilities as stacked area
+    for state in range(3):
+        label = regime_labels.get(state, f'State {state}')
+        color = regime_colors.get(state, '#808080')
+        fig.add_trace(
+            go.Scatter(
+                x=regime_df_smoothed.index,
+                y=regime_df_smoothed[f'State_{state}'],
+                mode='lines',
+                name=label,
+                stackgroup='one',
+                line=dict(width=0.5, color=color),
                 fillcolor=color,
-                opacity=0.3,
-                line_width=0,
-                row=2, col=1,
-                annotation_text=label,
-                annotation_position="top left"
-            )
-            
-            current_regime = regimes[i]
-            start_idx = i
-    
-    # Add last regime
-    color = regime_colors.get(current_regime, '#808080')
-    label = regime_labels.get(current_regime, f'State {current_regime}')
-    fig.add_vrect(
-        x0=dates[start_idx],
-        x1=dates[-1],
-        fillcolor=color,
-        opacity=0.3,
-        line_width=0,
-        row=2, col=1,
-        annotation_text=label,
-        annotation_position="top left"
-    )
-    
-    # Add regime line
-    fig.add_trace(
-        go.Scatter(
-            x=dates,
-            y=regimes,
-            mode='markers+lines',
-            name='Regime',
-            marker=dict(size=6),
-            line=dict(width=1, color='black'),
-            showlegend=False
-        ),
-        row=2, col=1
-    )
+                opacity=0.8,
+                hovertemplate='%{x|%b %Y}<br>%{y:.0%}<extra>%{fullData.name}</extra>'
+            ),
+            row=2, col=1
+        )
     
     # Update layout
     fig.update_layout(
@@ -589,7 +603,7 @@ def plot_regime_timeline(predictions, sector_returns=None, cumulative_returns=No
     )
     
     fig.update_yaxes(title_text="Cumulative Return", tickformat=".0%", row=1, col=1)
-    fig.update_yaxes(title_text="Regime", tickvals=[0, 1, 2], ticktext=['Risk-On', 'Risk-Off', 'Reflation'], row=2, col=1)
+    fig.update_yaxes(title_text="Regime Probability", tickformat=".0%", row=2, col=1)
     fig.update_xaxes(title_text="Date", row=2, col=1)
     
     return fig
@@ -657,40 +671,23 @@ def plot_sector_heatmap(weights, title="Sector Allocations Over Time"):
 # ============================================================================
 # MAIN ENTRY POINT
 # ============================================================================
-
 def run_full_backtest(features, sector_returns, available_mask, 
                       hmm_predictions, gmm_predictions, 
                       hmm_regime_performance, gmm_regime_performance,
                       save_plots=True):
     """
     Run complete backtest with all strategies and generate reports.
-    
-    Parameters:
-    -----------
-    features : pd.DataFrame
-        Feature data
-    sector_returns : pd.DataFrame
-        Monthly sector returns
-    available_mask : pd.DataFrame
-        Boolean mask of available sectors
-    hmm_predictions : pd.Series
-        HMM regime predictions
-    gmm_predictions : pd.Series
-        GMM regime predictions
-    hmm_regime_performance : pd.DataFrame
-        Sector performance by regime (HMM)
-    gmm_regime_performance : pd.DataFrame
-        Sector performance by regime (GMM)
-    save_plots : bool
-        Whether to save plots to OUTPUT_DIR
-    
-    Returns:
-    --------
-    dict : All backtest results
     """
+    from config import BENCHMARK_ETF, DATA_DIR
+    
     print("\n" + "="*60)
     print("BACKTEST: REGIME ROTATION STRATEGY")
     print("="*60)
+    
+    # Load SPY data from the saved macro/benchmark data
+    import pandas as pd
+    macro_prices = pd.read_parquet(DATA_DIR / "macro_prices.parquet")
+    spy_prices = macro_prices[BENCHMARK_ETF] if BENCHMARK_ETF in macro_prices.columns else None
     
     # Run all strategies
     results = {}
@@ -719,10 +716,15 @@ def run_full_backtest(features, sector_returns, available_mask,
     mom_strategy = run_momentum_benchmark(sector_returns, available_mask=available_mask)
     results['Momentum'] = mom_strategy
     
-    # 5. Buy & Hold (SPY proxy or equal weight all sectors)
-    print("\n[5/5] Running Buy & Hold Benchmark...")
-    bh_strategy = run_equal_weight_benchmark(sector_returns, available_mask)
-    results['Buy & Hold'] = bh_strategy
+    # 5. SPY Buy & Hold Benchmark
+    print("\n[5/5] Running SPY Buy & Hold Benchmark...")
+    if spy_prices is not None and not spy_prices.empty:
+        bh_strategy = run_spy_benchmark(sector_returns, spy_prices)
+        results['SPY (Buy & Hold)'] = bh_strategy
+    else:
+        print("  WARNING: SPY data not found. Falling back to equal-weight benchmark.")
+        bh_strategy = run_equal_weight_benchmark(sector_returns, available_mask)
+        results['Buy & Hold (EW)'] = bh_strategy
     
     # Calculate performance metrics
     print("\n" + "="*60)
@@ -783,8 +785,6 @@ def run_full_backtest(features, sector_returns, available_mask,
         'hmm_strategy': hmm_strategy,
         'gmm_strategy': gmm_strategy
     }
-
-
 # ============================================================================
 # QUICK TEST
 # ============================================================================
