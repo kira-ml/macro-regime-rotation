@@ -1,6 +1,6 @@
 # TODO.md - Macro-Informed Sector Rotation Project
 
-## Project Status: Foundation MVP Complete ✅
+## Project Status: **Final Production Release ✅**
 
 ---
 
@@ -22,11 +22,12 @@
   - [x] ML: hmmlearn
   - [x] Data: yfinance
   - [x] Visualization: plotly, matplotlib, seaborn, kaleido
-  - [x] Utilities: tqdm, pyarrow
+  - [x] Utilities: tqdm, pyarrow, joblib
+  - [x] PDF: reportlab
 
 ### 2. Data Pipeline (`data.py`) ✅
 - [x] `fetch_data()` - yfinance data acquisition
-  - [x] Supports 21 tickers (11 sectors + 10 macro proxies)
+  - [x] Supports 22 tickers (11 sectors + 10 macro proxies + SPY)
   - [x] Progress bar integration
   - [x] Handles MultiIndex extraction
 - [x] `resample_to_monthly()` - Frequency conversion
@@ -52,6 +53,10 @@
 - [x] `get_walk_forward_splits()` - Train/test date generation
   - [x] Configurable min training years
   - [x] Configurable refit frequency
+- [x] **Pipeline Hardening (Look-Ahead Bias Fix)**
+  - [x] Added automatic 1-month feature shift (`features.shift(1)`) to ensure zero look-ahead bias
+  - [x] Added auto-refresh logic for stale data (>30 days old)
+  - [x] Explicitly drop NaNs before standardization
 - [x] `get_regime_data()` - Main entry point
   - [x] Orchestrates complete data pipeline
   - [x] Saves to parquet (with CSV fallback)
@@ -68,6 +73,7 @@
 - [x] **Advanced Model: HMM**
   - [x] `fit_hmm()` - Train Hidden Markov Model
   - [x] Gaussian emissions with full covariance
+  - [x] **Tuning:** Added `transmat_prior=10.0` to enforce state persistence and reduce flickering
   - [x] Transition matrix tracking
   - [x] Viterbi algorithm for regime prediction
 - [x] `predict_regime()` - Unified prediction interface
@@ -101,6 +107,7 @@
   - [x] `run_momentum_benchmark()` - Benchmark 2
     - [x] 6-month lookback (Jegadeesh & Titman)
     - [x] 1-month skip to avoid reversal
+  - [x] **Added:** `run_spy_benchmark()` - S&P 500 Buy & Hold benchmark
   - [x] `run_full_backtest()` - Orchestration
 - [x] **Transaction Costs**
   - [x] `apply_transaction_costs()` - 5 bps one-way
@@ -119,7 +126,7 @@
   - [x] `calculate_cumulative_returns()`
 - [x] **Visualizations**
   - [x] `plot_cumulative_returns()`
-  - [x] `plot_regime_timeline()`
+  - [x] `plot_regime_timeline()` (Smoothed using 3-month rolling average)
   - [x] `plot_drawdowns()`
   - [x] `plot_sector_heatmap()`
 
@@ -132,93 +139,112 @@
   - [x] `compute_turnover()` - Implementation friction
 - [x] **Comparison Table**
   - [x] `create_comparison_table()` - Single table, all strategies
-- [x] **LinkedIn-Ready Visualizations**
-  - [x] `plot_hero_chart()` - Cumulative returns with regime background
-  - [x] `plot_regime_heatmap()` - Sector performance by regime
-  - [x] `plot_drawdown_comparison()` - Underwater plot
+- [x] **Quant-Finance Visualizations (Matplotlib/Seaborn)**
+  - [x] `plot_hero_chart()` - Cumulative returns with regime background (White-grid, high-contrast colors)
+  - [x] `plot_regime_heatmap()` - Sector performance by regime (RdYlGn colormap)
+  - [x] `plot_drawdown_comparison()` - Underwater plot with shaded fills
   - [x] `plot_rolling_sharpe()` - Performance stability
-  - [x] `plot_regime_timeline_annotated()` - Event validation
+  - [x] `plot_regime_timeline_annotated()` - Event validation with white-background text boxes
+- [x] **Defensive Programming**
+  - [x] Added try/except blocks to ensure plot generation doesn't crash the pipeline
 - [x] **Output Generation**
-  - [x] HTML exports for interactive charts
-  - [x] PNG exports for LinkedIn posts
-  - [x] High-resolution (scale=2)
+  - [x] PNG exports for GitHub/LinkedIn (300 DPI, high resolution)
+
+### 6. Documentation & Reporting ✅
+- [x] **`experiment_regimes.py`** - Regime Count Validation
+  - [x] Tested 2, 3, and 4 regimes for both GMM and HMM
+  - [x] Confirmed 3 regimes is the optimal sweet spot for HMM
+  - [x] Results table printed to console
+- [x] **`generate_pdf_report.py`** - Academic PDF Generator
+  - [x] Professional academic-style PDF (Times New Roman, justified)
+  - [x] Contains Abstract, Methodology, Results, Limitations
+  - [x] Embeds all 5 visualizations
+  - [x] 6-page professional report
+- [x] **`README.md`**
+  - [x] Updated with final 3-regime metrics table
+  - [x] Embedded all 5 visualizations directly into the README
+  - [x] Added PDF download badge
+  - [x] Updated methodology and feature engineering sections
+- [x] **`.gitignore`**
+  - [x] Fixed to **track PNG files** in `outputs/` so images load on GitHub
+  - [x] Continued ignoring raw data files and HTML outputs
 
 ---
 
 ## Project Statistics
 
 ### Data
-- **Date Range:** 2018-07-31 to 2025-12-31 (90 months)
+- **Date Range:** 2018-08-31 to 2025-12-31 (89 months)
 - **Sectors:** 11 (all GICS)
-- **Macro Proxies:** 10
+- **Macro Proxies:** 10 + SPY (Benchmark)
 - **Features:** 9 engineered
 
 ### Models
 - **GMM:** 3 regimes, walk-forward validated
 - **HMM:** 3 regimes, walk-forward validated
-- **Models trained:** 3 per approach (annual refit)
+- **Model tuning:** `transmat_prior=10.0` applied for persistence
 
-### Performance (HMM Strategy)
+### Performance (Final HMM Strategy - 3 Regimes)
 | Metric | Value |
 |--------|-------|
-| Annual Return | 18.71% |
-| Volatility | 12.63% |
-| Sharpe Ratio | 1.19 |
-| Max Drawdown | -7.29% |
-| Calmar Ratio | 2.57 |
-| Win Rate | 63.33% |
-| Monthly Turnover | 62.22% |
+| Annual Return | **25.53%** |
+| Volatility | **12.69%** |
+| Sharpe Ratio | **1.85** |
+| Max Drawdown | **-6.68%** |
+| Calmar Ratio | **381.98%** |
+| Win Rate | 72.41% |
+| Monthly Turnover | 16.09% |
+
+### Benchmark Comparison (Out-of-Sample 2023–2025)
+| Metric | HMM (3 States) | GMM | SPY | Momentum |
+|--------|----------------|-----|-----|----------|
+| Sharpe Ratio | **1.85** | 1.71 | 0.74 | 0.71 |
+| Max Drawdown | **-6.68%** | -10.23% | -23.93% | -16.61% |
 
 ### Files Generated
 - **Data:** 5 parquet files (sector_prices, macro_prices, features, sector_returns, available_mask)
-- **Visualizations:** 5 HTML + 5 PNG files
-- **Code:** 5 Python modules (~1,500+ lines)
+- **Visualizations:** 5 high-res PNG files (300 DPI)
+- **Code:** 7 Python modules (~1,800+ lines)
+- **Documentation:** 1 PDF report, 1 README, 1 TODO.md
 
 ---
 
 ## Known Limitations
 
-1. **Data Range:** Due to XLC inception (2018), only 90 months of data available
-   - Trade-off: All 11 sectors available vs. longer history
-   - Consider: Dropping XLC for 2006-2025 history
-
-2. **Regime Labels:** Heuristic labeling may not perfectly match economic intuition
-   - Current labels: Mixed, Reflation/Inflationary, Mixed
-   - Opportunity: Manual labeling with economic validation
-
-3. **Sample Size:** Only 30 out-of-sample months for walk-forward
+1. **Out-of-Sample Period:** Only 29 out-of-sample months (2023–2025)
    - Limited statistical significance
-   - Need more data or longer training period
+   - Period was characterized by strong AI-driven concentration
 
-4. **Transaction Costs:** Simple 5 bps assumed for all trades
+2. **Regime 2 (Reflation):** Rare event (1 month only)
+   - Model correctly identified it as rare, but cannot be robustly evaluated
+
+3. **Transaction Costs:** Simple 5 bps assumed for all trades
    - Real execution may have higher costs for less liquid ETFs
 
-5. **No Risk Management:** Always 100% invested
+4. **No Risk Management:** Always 100% invested
    - No cash position or volatility targeting
+
+5. **Feature Set:** Limited to 9 macro proxies from yfinance
+   - Excludes geopolitical risk, sentiment, or central bank communication
 
 ---
 
 ## Next Steps / Future Work
 
 ### Short-Term Enhancements
-- [ ] Add dynamic regime labeling with economic indicators
-- [ ] Include SPY as additional benchmark
-- [ ] Add volatility targeting overlay
-- [ ] Create interactive dashboard with Streamlit
-- [ ] Add sensitivity analysis for number of regimes (2, 3, 4)
+- [ ] **Dynamic Risk-Free Rate:** Replace fixed 3% with actual 3-month T-bill (^IRX)
+- [ ] **Risk-Managed Overlay:** Add cash hedge or volatility targeting during Regime 2
+- [ ] **Feature Expansion:** Add Fed speeches or geopolitical risk indices
+- [ ] **Transformer Comparison:** Test transformer-based architectures for continuous regime probability
 
 ### Medium-Term Improvements
-- [ ] Expand feature set with more macro indicators
-- [ ] Add regime persistence constraints
-- [ ] Implement ensemble of GMM/HMM with averaging
-- [ ] Add regime probability thresholds (only trade with high confidence)
-- [ ] Include regime transition penalties
+- [ ] **International Expansion:** Test the strategy on European or Asian sector ETFs
+- [ ] **Streamlit Dashboard:** Build an interactive dashboard for live regime tracking
+- [ ] **Ensemble Averaging:** Combine GMM and HMM predictions for smoother transitions
 
 ### Long-Term Research
-- [ ] Compare with deep learning approaches (LSTM, Transformer)
-- [ ] Test on international markets
-- [ ] Add alternative data (sentiment, options flow)
-- [ ] Build real-time deployment pipeline
+- [ ] **Deep Learning:** Replace HMM with LSTM/Transformers for sequential regime detection
+- [ ] **Real-Time Deployment:** Build a pipeline that pulls data daily and updates signals
 
 ---
 
@@ -228,17 +254,14 @@
 # 1. Setup
 pip install -r requirements.txt
 
-# 2. Data pipeline
-python data.py
-
-# 3. Train models
-python models.py
-
-# 4. Run backtest
-python backtest.py
-
-# 5. Generate evaluation & visualizations
+# 2. Run full pipeline (Data → Models → Backtest → Evaluation)
 python evaluation.py
+
+# 3. Run the Regime Count Experiment (2, 3, 4 states)
+python experiment_regimes.py
+
+# 4. Generate the Academic PDF Report
+python generate_pdf_report.py
 ```
 
 ---
@@ -252,8 +275,12 @@ macro-regime-rotation/
 ├── models.py             # GMM + HMM (✅ Complete)
 ├── backtest.py          # Strategy backtest (✅ Complete)
 ├── evaluation.py        # Metrics + visualizations (✅ Complete)
+├── experiment_regimes.py # Regime count experiment (✅ Complete)
+├── generate_pdf_report.py # PDF generator (✅ Complete)
 ├── requirements.txt     # Dependencies (✅ Complete)
-├── TODO.md             # This file
+├── README.md            # Project documentation (✅ Complete)
+├── TODO.md              # This file (✅ Complete)
+├── Macro_Regime_Rotation_Report.pdf # Academic report (✅ Complete)
 │
 ├── data/               # Processed data (✅ Generated)
 │   ├── sector_prices.parquet
@@ -262,27 +289,28 @@ macro-regime-rotation/
 │   ├── sector_returns.parquet
 │   └── available_mask.parquet
 │
-└── outputs/            # Results (✅ Generated)
-    ├── hero_chart.html/png
-    ├── regime_heatmap.html/png
-    ├── drawdowns.html/png
-    ├── rolling_sharpe.html/png
-    └── regime_timeline_events.html/png
+└── outputs/            # Visualizations (✅ Generated)
+    ├── hero_chart.png
+    ├── regime_heatmap.png
+    ├── drawdowns.png
+    ├── rolling_sharpe.png
+    └── regime_timeline_events.png
 ```
 
 ---
 
 ## Key Achievements
 
-1. **Zero Look-Ahead Bias** - All features use data available at prediction time
-2. **Walk-Forward Validation** - Models retrained annually, tested out-of-sample
-3. **Transaction Costs** - Realistic 5 bps included
-4. **Dynamic Universe** - Handles ETFs with different inception dates
-5. **Reproducible** - Single source of truth with config.py
-6. **Complete Story** - From economic theory → features → model → strategy → evaluation
-7. **LinkedIn-Ready** - Professional visualizations for portfolio presentation
+1. **Zero Look-Ahead Bias** - Features shifted 1-month backward to ensure no future data leaks
+2. **Walk-Forward Validation** - 5-year initial training, annual refits, expanding window
+3. **Transaction Costs** - Realistic 5 bps included in all backtests
+4. **Dynamic Universe** - Handles XLRE (2015) and XLC (2018) inception dates
+5. **HMM Persistence Tuning** - `transmat_prior=10.0` eliminated flickering (turnover dropped from 62% to 16%)
+6. **Empirical Regime Validation** - Tested 2, 3, and 4 regimes; confirmed 3 is optimal
+7. **Professional Visualizations** - 5 publication-grade Matplotlib/Seaborn charts
+8. **Academic Documentation** - 6-page PDF report + fully documented README
 
 ---
 
 **Last Updated:** 2026-06-27
-**Status:** Foundation MVP Complete ✅
+**Status:** Final Production Release ✅
