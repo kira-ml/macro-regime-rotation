@@ -153,15 +153,17 @@ data/*.feather
 # But keep the data directory structure
 !data/.gitkeep
 
-# Outputs (visualizations, reports)
+# Outputs (visualizations, reports) - Keep structure but ignore sub-folders
 outputs/*.html
-outputs/*.png
 outputs/*.jpg
 outputs/*.jpeg
 outputs/*.pdf
 outputs/*.svg
 outputs/*.csv
 outputs/*.xlsx
+
+# KEEP THE PNG VISUALIZATIONS (So they load on GitHub)
+!outputs/*.png
 
 # Keep output directory
 !outputs/.gitkeep
