@@ -5,6 +5,7 @@
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 [![Status](https://img.shields.io/badge/Status-Completed-brightgreen.svg)](https://github.com/kira-ml/macro-regime-rotation)
+[![PDF Report](https://img.shields.io/badge/📄-Download_PDF_Report-blue)](Macro_Regime_Rotation_Report.pdf)
 
 ---
 
