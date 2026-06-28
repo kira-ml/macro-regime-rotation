@@ -71,6 +71,7 @@ def generate_pdf():
     # --- Title ---
     story.append(Paragraph("Macro-Informed Sector Rotation", title_style))
     story.append(Paragraph("A Framework for Regime-Aware Tactical Asset Allocation", author_style))
+    story.append(Paragraph("Ken Ira Lacson Talingting", author_style))
     story.append(Spacer(1, 0.15*inch))
 
     # --- Section 1: Problem Framing ---
