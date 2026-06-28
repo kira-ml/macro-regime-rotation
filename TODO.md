@@ -312,5 +312,31 @@ macro-regime-rotation/
 
 ---
 
-**Last Updated:** 2026-06-27
+## Optimization Pass (2026-06-28)
+
+### Critical Fixes
+- [x] **Look-Ahead Bias Fix (`data.py`):** Moved feature shift before standardization. Features now shifted 1 month back on raw data, then standardized per-fold in `models.py`. Previously standardization happened first, leaking future mean/std into the shifted features.
+- [x] **Actual Risk-Free Rate (`backtest.py`):** Replaced hardcoded 2% with 3-month T-bill rate (^IRX) from yfinance. Updated `calculate_metrics()` and `compare_strategies()` to accept dynamic rate. New Sharpe ratios: HMM 1.64 (was 1.85), GMM 1.52 (was 1.71), SPY 0.72 (was 0.74), Momentum 0.71 (unchanged).
+- [x] **Out-of-Sample Date Range:** Corrected from vague "2023–2025" to exact "Aug 2023 – Dec 2025 (29 months)" across README, PDF, and figure captions.
+
+### Code Cleanup
+- [x] **Removed Double Standardization:** Global standardization removed from `data.py`. Standardization now handled only per-fold in `models.py` via `StandardScaler()`.
+- [x] **Momentum Benchmark Fix (`backtest.py`):** Replaced fragile `iloc` integer indexing with date-based `loc` indexing in `run_momentum_benchmark()`.
+- [x] **Dead Code Removed:** Deleted unused `calculate_returns()` from `backtest.py`.
+
+### Documentation Updates
+- [x] **README:** Added transmat_prior story (62% → 16% turnover). Added regime count justification (tested 2/3/4). Updated limitations (fully-invested scoping rationale, transaction cost assumptions). Added risk-free rate footnote. Acknowledged GMM higher raw return alongside HMM better risk metrics. Removed ego-driven language.
+- [x] **PDF Report:** Updated Sharpe ratios, date range, added transmat_prior explanation, regime count section, author name, risk-free rate footnote. Removed self-praising language. Changed first-person to "we".
+- [x] **`experiment_regimes.py`:** Added CSV export of results to `outputs/regime_count_experiment.csv`.
+
+### Key Achievements (New)
+9. **Actual Risk-Free Rate** - Uses ^IRX from data instead of hardcoded assumption
+10. **Honest Reporting** - GMM's higher raw return acknowledged alongside HMM's better risk-adjusted metrics
+
+
+
+
+
+
+**Last Updated:** 2026-06-28
 **Status:** Final Production Release ✅
