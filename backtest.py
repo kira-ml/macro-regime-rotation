@@ -20,10 +20,6 @@ from config import (
 # HELPER FUNCTIONS
 # ============================================================================
 
-def calculate_returns(prices):
-    """Calculate monthly returns from price data."""
-    returns = prices.pct_change().dropna()
-    return returns
 
 
 def select_top_sectors(regime_performance, regime, n_sectors=TOP_N_SECTORS):
@@ -250,10 +246,12 @@ def run_momentum_benchmark(sector_returns, lookback=MOMENTUM_LOOKBACK_MONTHS,
         else:
             available_sectors = sector_returns.columns.tolist()
         
-        # Calculate momentum score (returns from t-lookback-skip to t-skip)
-        start_idx = i - lookback - skip
-        end_idx = i - skip
-        momentum = (1 + sector_returns.iloc[start_idx:end_idx]).prod() - 1
+        # Momentum: months t-7 to t-2 (6-month lookback, skip t-1 to avoid short-term reversal)
+        # Uses date-based indexing for clarity and correctness
+        lookback_start = dates[i - lookback - skip]
+        lookback_end = dates[i - skip - 1]  # Inclusive, so subtract 1 to stop at t-2
+        momentum_window = sector_returns.loc[lookback_start:lookback_end]
+        momentum = (1 + momentum_window).prod() - 1
         momentum = momentum[momentum.index.isin(available_sectors)]
         
         # Select top N
@@ -450,7 +448,7 @@ def calculate_cumulative_returns(results_dict):
     return cumulative
 
 
-def compare_strategies(strategy_results):
+def compare_strategies(strategy_results, risk_free_rate=0.02):
     """
     Compare multiple strategies and create summary table.
     
@@ -458,16 +456,19 @@ def compare_strategies(strategy_results):
     -----------
     strategy_results : dict
         {'strategy_name': {'returns': pd.Series, ...}, ...}
+    risk_free_rate : float
+        Annual risk-free rate (decimal, e.g. 0.02 for 2%)
     
     Returns:
     --------
-    pd.DataFrame : Performance comparison table
+    pd.DataFrame : Performance comparison table (raw)
+    pd.DataFrame : Performance comparison table (formatted)
     """
     metrics_list = []
     
     for name, result in strategy_results.items():
         returns = result.get('returns', pd.Series())
-        metrics = calculate_metrics(returns)
+        metrics = calculate_metrics(returns, risk_free_rate=risk_free_rate)
         metrics['Strategy'] = name
         metrics_list.append(metrics)
     
@@ -487,6 +488,7 @@ def compare_strategies(strategy_results):
             df_formatted[col] = df_formatted[col].apply(lambda x: f"{x:.2%}" if not pd.isna(x) else "N/A")
     
     return df, df_formatted
+
 
 
 # ============================================================================
@@ -684,10 +686,18 @@ def run_full_backtest(features, sector_returns, available_mask,
     print("BACKTEST: REGIME ROTATION STRATEGY")
     print("="*60)
     
-    # Load SPY data from the saved macro/benchmark data
+    # Load SPY data and risk-free rate from the saved macro/benchmark data
     import pandas as pd
     macro_prices = pd.read_parquet(DATA_DIR / "macro_prices.parquet")
     spy_prices = macro_prices[BENCHMARK_ETF] if BENCHMARK_ETF in macro_prices.columns else None
+    
+    # Compute actual risk-free rate from 3-month T-bill (^IRX)
+    if '^IRX' in macro_prices.columns:
+        rf_annual = macro_prices['^IRX'].mean() / 100  # Average annual rate over full period
+        print(f"  Using actual risk-free rate: {rf_annual:.2%} (avg 3-month T-bill)")
+    else:
+        rf_annual = 0.02
+        print(f"  WARNING: ^IRX not found. Using default 2% risk-free rate.")
     
     # Run all strategies
     results = {}
@@ -731,7 +741,7 @@ def run_full_backtest(features, sector_returns, available_mask,
     print("PERFORMANCE METRICS")
     print("="*60)
     
-    metrics_df, metrics_formatted = compare_strategies(results)
+    metrics_df, metrics_formatted = compare_strategies(results, risk_free_rate=rf_annual)
     print("\n", metrics_formatted.to_string(index=False))
     
     # Calculate cumulative returns

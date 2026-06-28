@@ -384,6 +384,10 @@ def get_regime_data(force_refresh=False):
     Main entry point for data acquisition and feature engineering.
     Fetches all data, processes it, and returns ready-to-use features and returns.
     
+    Features are shifted by 1 month BEFORE any standardization to ensure
+    zero look-ahead bias. Standardization is performed per-fold during
+    walk-forward validation in models.py, not here.
+    
     Parameters:
     -----------
     force_refresh : bool
@@ -392,7 +396,7 @@ def get_regime_data(force_refresh=False):
     Returns:
     --------
     dict : {
-        'features': pd.DataFrame,  # Engineered features
+        'features': pd.DataFrame,  # Raw engineered features (shifted, not standardized)
         'sector_returns': pd.DataFrame,  # Monthly sector returns
         'available_mask': pd.DataFrame,  # Boolean mask of available sectors
         'dates': pd.DatetimeIndex,  # All dates
@@ -478,28 +482,28 @@ def get_regime_data(force_refresh=False):
     sector_prices = sector_prices.loc[common_idx]
     available_mask = available_mask.loc[common_idx]
     
-    # CRITICAL FIX: Drop NaN explicitly before standardization
+    # Drop NaN explicitly
     features_raw = features_raw.dropna()
-    
-    # Standardize features
-    features, _ = standardize_features(features_raw)
     
     # ---------- STEP 5: Compute sector returns ----------
     print("\n[5/5] Computing sector returns...")
     sector_returns = sector_prices.pct_change().dropna()
     
-    # Align features and returns (drop first month where returns are NaN)
-    common_idx = features.index.intersection(sector_returns.index)
-    features = features.loc[common_idx]
+    # Align raw features with sector returns (drop first month where returns are NaN)
+    common_idx = features_raw.index.intersection(sector_returns.index)
+    features_raw = features_raw.loc[common_idx]
     sector_returns = sector_returns.loc[common_idx]
     available_mask = available_mask.loc[common_idx]
     
-    # ---------- CRITICAL FIX: Shift features to prevent look-ahead bias ----------
-    # We shift features by 1 month to ensure they are known at the time of prediction
-    features = features.shift(1).dropna()
-    # Re-align with sector returns after the shift
-    common_idx = features.index.intersection(sector_returns.index)
-    features = features.loc[common_idx]
+    # ---------- CRITICAL: Shift features BEFORE any standardization ----------
+    # Shift by 1 month so features at time t use only data available through t.
+    # This must happen before standardization so mean/std don't leak future info.
+    # Standardization is handled per-fold in models.py during walk-forward validation.
+    features_raw = features_raw.shift(1).dropna()
+    
+    # Re-align after shift
+    common_idx = features_raw.index.intersection(sector_returns.index)
+    features = features_raw.loc[common_idx]
     sector_returns = sector_returns.loc[common_idx]
     available_mask = available_mask.loc[common_idx]
     
@@ -532,8 +536,6 @@ def get_regime_data(force_refresh=False):
             'feature_names': list(features.columns)
         }
     }
-
-
 
 # ============================================================================
 # QUICK TEST

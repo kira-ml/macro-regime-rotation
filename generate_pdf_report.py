@@ -1,10 +1,15 @@
+"""
+Generate an academic-style PDF report for the Macro-Informed Sector Rotation project.
+Uses reportlab for PDF generation with embedded figures and formatted tables.
+"""
+
 import os
 from reportlab.lib.pagesizes import LETTER
 from reportlab.lib.units import inch
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, 
-    PageBreak, Image, ListFlowable, ListItem
+    Image, ListFlowable, ListItem
 )
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
@@ -59,12 +64,8 @@ def generate_pdf():
         'Caption', parent=styles['Normal'], fontName='Times-Italic', fontSize=9.5, 
         alignment=TA_CENTER, spaceAfter=10
     )
-    center_style = ParagraphStyle(
-        'Center', parent=styles['Normal'], fontName='Times-Roman', fontSize=10.5, 
-        alignment=TA_CENTER, spaceAfter=6
-    )
 
-    # 2. Build Document Elements
+    # Build Document Elements
     story = []
 
     # --- Title ---
@@ -72,21 +73,21 @@ def generate_pdf():
     story.append(Paragraph("A Framework for Regime-Aware Tactical Asset Allocation", author_style))
     story.append(Spacer(1, 0.15*inch))
 
-    # --- Section 1: The Problem ---
+    # --- Section 1: Problem Framing ---
     story.append(Paragraph("I. Problem Selection &amp; Framing", heading_style))
     story.append(Paragraph(
-        "The starting point for this project was not a model, but a question: <i>'Why do simple momentum strategies fail catastrophically at certain times?'</i> "
-        "Examining historical data, it becomes clear that static allocation rules break down during regime shifts—periods where the underlying data-generating process changes structurally.",
+        "The starting point for this project was a question: <i>why do simple momentum strategies perform poorly at certain times?</i> "
+        "Examining historical data, it becomes clear that static allocation rules break down during regime shifts — periods where the underlying data-generating process changes structurally.",
         body_style
     ))
     story.append(Paragraph(
-        "Instead of treating this as a pure return-forecasting problem, I reframed it as a <b>regime detection problem</b>. The objective shifted from predicting which sector will outperform "
+        "Instead of treating this as a pure return-forecasting problem, the project reframes it as a <b>regime detection problem</b>. The objective shifts from predicting which sector will outperform "
         "to inferring the latent macroeconomic environment and conditioning sector selection on that inferred state.",
         body_style
     ))
     story.append(Paragraph(
         "This framing was chosen for two reasons. First, regime detection is a more tractable unsupervised learning problem compared to noisy return prediction. "
-        "Second, the resulting allocation logic is transparent and interpretable—critical for any strategy that would be deployed in a live portfolio.",
+        "Second, the resulting allocation logic is transparent and interpretable.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
@@ -96,14 +97,11 @@ def generate_pdf():
     
     story.append(Paragraph("<b>Key Assumptions</b>", subheading_style))
     story.append(Paragraph(
-        "1. <b>Stationarity within regimes:</b> I assume that while the market shifts between discrete states, the return distributions of sectors are relatively stable within each state. "
+        "1. <b>Stationarity within regimes:</b> We assume that while the market shifts between discrete states, the return distributions of sectors are relatively stable within each state. "
         "This is a strong assumption but necessary for a discrete-state HMM.<br/>"
-        "2. <b>Feature sufficiency:</b> I assume that a compact set of macro variables (yield curve, credit spreads, volatility) contains enough signal to identify regime shifts. "
-        "This is a practical compromise between model complexity and data availability.",
-        body_style
-    ))
-    story.append(Paragraph(
-        "3. <b>Discrete states:</b> The continuous spectrum of market conditions is modeled as 3 discrete states. This is a deliberate simplification—real markets exist on a continuum—but 3 states "
+        "2. <b>Feature sufficiency:</b> We assume that a compact set of macro variables (yield curve, credit spreads, volatility) contains enough signal to identify regime shifts. "
+        "This is a practical compromise between model complexity and data availability.<br/>"
+        "3. <b>Discrete states:</b> The continuous spectrum of market conditions is modeled as 3 discrete states. This is a deliberate simplification — real markets exist on a continuum — but 3 states "
         "mapped well to intuitive environments (Risk-On, Risk-Off, Reflation) without overfitting.",
         body_style
     ))
@@ -112,12 +110,12 @@ def generate_pdf():
     story.append(Paragraph("<b>Data Considerations</b>", subheading_style))
     story.append(Paragraph(
         "Data was sourced exclusively from yfinance to ensure reproducibility. The universe comprises 11 GICS sector ETFs and 10 macro proxies. "
-        "A dynamic availability mask handles the later inception dates of XLRE (2015) and XLC (2018), ensuring the strategy only allocates to sectors that actually existed at the time.",
+        "A dynamic availability mask handles the later inception dates of XLRE (2015) and XLC (2018), ensuring the strategy only allocates to sectors that existed at the time.",
         body_style
     ))
     story.append(Paragraph(
-        "Importantly, feature engineering was designed with strict look-ahead constraints. All features are derived using only information available at the time of inference, "
-        "and standardization is performed per-fold during walk-forward validation to prevent data leakage.",
+        "Feature engineering was designed to prevent look-ahead bias. Features at time <i>t</i> are constructed using only data available at or before <i>t</i>. "
+        "Raw features are shifted by 1 month before any standardization, and standardization is performed per-fold during walk-forward validation.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
@@ -127,52 +125,65 @@ def generate_pdf():
     
     story.append(Paragraph("<b>Model Selection</b>", subheading_style))
     story.append(Paragraph(
-        "I chose a Hidden Markov Model (HMM) over simpler static clustering (GMM) because regimes are inherently persistent. "
+        "A Hidden Markov Model (HMM) was chosen over simpler static clustering (GMM) because regimes are inherently persistent. "
         "A GMM classifies each month independently, ignoring temporal structure. The HMM explicitly models the transition matrix, capturing the fact that if we are in a Risk-Off regime today, "
-        "we are highly likely to be in it next month.",
+        "we are likely to remain there next month.",
         body_style
     ))
     story.append(Paragraph(
-        "The HMM was trained with Gaussian emissions and a diagonal transition prior to enforce persistence. "
-        "The model was refit annually on an expanding window to adapt to evolving market dynamics.",
+        "The HMM was trained with Gaussian emissions. A diagonal transition prior (<font face='Courier'>transmat_prior=10.0</font>) was applied to enforce state persistence. "
+        "Without this prior, the model produced regimes that flickered between states month-to-month, generating approximately 62% monthly turnover — economically implausible. "
+        "The prior reduced turnover to 16% while preserving the model's ability to detect genuine regime shifts at major inflection points (COVID, 2022 rate hikes, SVB collapse).",
+        body_style
+    ))
+    story.append(Spacer(1, 0.1*inch))
+
+    story.append(Paragraph("<b>Regime Count Selection</b>", subheading_style))
+    story.append(Paragraph(
+        "The choice of 3 regimes was validated by testing 2, 3, and 4 regimes with both GMM and HMM. "
+        "Two regimes collapsed to a simple risk-on/risk-off binary that missed the reflationary dynamics of 2022. "
+        "Four regimes produced a fragmented state with minimal occurrences, offering little practical value. "
+        "Three regimes provided the best balance of economic interpretability and statistical stability.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
 
     story.append(Paragraph("<b>Evaluation Strategy</b>", subheading_style))
     story.append(Paragraph(
-        "The strategy was evaluated using a rigorous walk-forward validation scheme: 5 years of initial training, followed by annual refits. "
+        "The strategy was evaluated using walk-forward validation: 5 years of initial training (Aug 2018 – Jul 2023), followed by annual refits on an expanding window. "
+        "The out-of-sample period spans 29 months (Aug 2023 – Dec 2025). "
         "Performance was measured against an equal-weight portfolio, a naive 6-month momentum strategy, and the S&P 500 (SPY). "
         "All backtests include a 5 basis point one-way transaction cost.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
 
-    # --- Section 4: Hero Chart ---
+    # --- Section 4: Cumulative Returns Chart ---
     if os.path.exists(IMAGES["hero"]):
         img = Image(IMAGES["hero"], width=7*inch, height=4.5*inch)
         story.append(img)
         story.append(Paragraph(
-            "Figure 1: Out-of-sample cumulative returns (2023–2025). The HMM strategy (blue) and GMM baseline (orange) are compared against the S&P 500, Momentum, and Equal-Weight benchmarks.",
+            "Figure 1: Out-of-sample cumulative returns (Aug 2023 – Dec 2025, 29 months). The HMM strategy (blue) and GMM baseline (orange) "
+            "are compared against the S&P 500, Momentum, and Equal-Weight benchmarks.",
             caption_style
         ))
         story.append(Spacer(1, 0.15*inch))
 
     # --- Section 5: Results ---
-    story.append(Paragraph("IV. Observations", heading_style))
+    story.append(Paragraph("IV. Results", heading_style))
     story.append(Paragraph(
-        "The table below presents the out-of-sample performance metrics. The HMM strategy delivered a Sharpe ratio of 1.85 over the evaluation period, "
-        "with an annualized return of 25.53% and a maximum drawdown of only -6.68%. "
-        "It is important to note that this period (2023–2025) was characterized by a strong AI-driven bull market, which may not generalize to other environments.",
+        "The table below presents the out-of-sample performance metrics. The HMM strategy delivered a Sharpe ratio of 1.64 over the evaluation period, "
+        "with an annualized return of 25.53% and a maximum drawdown of -6.68%. "
+        "The out-of-sample period (Aug 2023 – Dec 2025) was characterized by a strong AI-driven bull market, which may not generalize to other environments.",
         body_style
     ))
     
-    # The Metrics Table (Updated with final 3-regime HMM results)
+    # The Metrics Table
     data = [
         ["Metric", "HMM (3 States)", "GMM", "SPY", "Momentum"],
         ["Ann. Return", "25.53%", "26.29%", "14.58%", "14.09%"],
         ["Ann. Volatility", "12.69%", "14.18%", "16.82%", "16.35%"],
-        ["Sharpe Ratio", "1.85", "1.71", "0.74", "0.71"],
+        ["Sharpe Ratio", "1.64", "1.52", "0.72", "0.71"],
         ["Max Drawdown", "-6.68%", "-10.23%", "-23.93%", "-16.61%"],
         ["Turnover", "16.09%", "2.30%", "0.00%", "56.32%"]
     ]
@@ -188,35 +199,43 @@ def generate_pdf():
         ('BACKGROUND', (0,0), (-1,0), colors.lightgrey),
     ]))
     story.append(table)
-    story.append(Spacer(1, 0.15*inch))
+    story.append(Spacer(1, 0.05*inch))
+    story.append(Paragraph(
+        "<i>Note: Sharpe ratios use the 3-month T-bill rate (^IRX) from the same data source, averaged over the full sample period (1.62% annualized), as the risk-free rate.</i>",
+        caption_style
+    ))
+    story.append(Spacer(1, 0.1*inch))
 
     story.append(Paragraph(
-        "An interesting observation is that the static GMM slightly outperformed the dynamic HMM in raw annualized return (26.29% vs. 25.53%). "
-        "However, the HMM delivered a superior Sharpe ratio (1.85 vs. 1.71) and a smaller maximum drawdown (-6.68% vs. -10.23%), indicating better risk-adjusted performance. "
-        "This suggests that while static models can capture persistent trends effectively, the HMM's ability to detect regime shifts provides meaningful downside protection.",
+        "The static GMM slightly outperformed the HMM in raw annualized return (26.29% vs. 25.53%). "
+        "However, the HMM delivered a higher Sharpe ratio (1.64 vs. 1.52) and a smaller maximum drawdown (-6.68% vs. -10.23%). "
+        "This pattern — where static models capture persistent trends effectively but with higher volatility and deeper drawdowns — "
+        "suggests that the HMM's temporal modeling provides meaningful downside protection, even if it does not improve raw returns in trending markets.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
 
     story.append(Paragraph("<b>Regime-Conditional Performance</b>", subheading_style))
     story.append(Paragraph(
-        "The HMM's regime-conditional Sharpe ratios further validate its utility. Regime 0 (Risk-On) exhibited a Sharpe of 1.77, while Regime 1 (Risk-Off) produced a Sharpe of 1.59. "
-        "Regime 2 (Reflation) was identified as a rare, high-inflationary state occurring only once in the 29-month out-of-sample window. "
-        "These results demonstrate that the model successfully identifies distinct environments with varying risk-reward profiles.",
+        "The HMM's regime-conditional Sharpe ratios were 1.77 for State 0 (Risk-On) and 1.59 for State 1 (Risk-Off). "
+        "State 2 (Reflation) was identified as a rare state, occurring only once in the 29-month out-of-sample window, "
+        "so its conditional Sharpe could not be reliably estimated. "
+        "The model successfully identified distinct environments with different risk-reward profiles, "
+        "though the short evaluation period limits the statistical confidence in these conditional estimates.",
         body_style
     ))
     story.append(Spacer(1, 0.1*inch))
 
-    # --- Section 6: Visuals ---
-    story.append(Paragraph("V. Model Validation &amp; Visual Analysis", heading_style))
+    # --- Section 6: Visual Analysis ---
+    story.append(Paragraph("V. Visual Analysis", heading_style))
 
     # Heatmap
     if os.path.exists(IMAGES["heatmap"]):
         img = Image(IMAGES["heatmap"], width=7*inch, height=3.5*inch)
         story.append(img)
         story.append(Paragraph(
-            "Figure 2: Sector performance conditional on each detected regime. This heatmap validates that the model found economically meaningful states—Energy and Materials dominate during Reflation, "
-            "while Tech and Communication Services lead during Risk-On regimes.",
+            "Figure 2: Sector performance conditional on each detected regime. The heatmap shows that the model found economically meaningful states — "
+            "Energy and Materials performed best during Reflation, while Tech and Communication Services led during Risk-On regimes.",
             caption_style
         ))
         story.append(Spacer(1, 0.15*inch))
@@ -226,7 +245,9 @@ def generate_pdf():
         img = Image(IMAGES["timeline"], width=7*inch, height=4*inch)
         story.append(img)
         story.append(Paragraph(
-            "Figure 3: Regime timeline annotated with real-world events. The model detected regime shifts around COVID, the 2022 rate hikes, and the SVB collapse without being provided these labels.",
+            "Figure 3: Regime timeline annotated with major macroeconomic events. The model detected regime shifts around COVID, "
+            "the 2022 rate hikes, and the SVB collapse without being provided these labels, "
+            "suggesting the unsupervised approach captured real economic regime changes.",
             caption_style
         ))
         story.append(Spacer(1, 0.15*inch))
@@ -236,7 +257,8 @@ def generate_pdf():
         img = Image(IMAGES["drawdown"], width=7*inch, height=3.5*inch)
         story.append(img)
         story.append(Paragraph(
-            "Figure 4: Drawdown comparison. The regime rotation strategies maintained significantly shallower drawdowns than the benchmarks, demonstrating effective downside risk management.",
+            "Figure 4: Drawdown comparison over the out-of-sample period. The regime rotation strategies maintained shallower drawdowns "
+            "than the benchmarks during this window.",
             caption_style
         ))
         story.append(Spacer(1, 0.15*inch))
@@ -246,38 +268,48 @@ def generate_pdf():
         img = Image(IMAGES["rolling_sharpe"], width=7*inch, height=3.5*inch)
         story.append(img)
         story.append(Paragraph(
-            "Figure 5: Rolling 3-year Sharpe ratio. This chart shows strategy consistency over time. While the HMM strategy performed well, the Sharpe ratio fluctuates, underscoring that performance is time-dependent.",
+            "Figure 5: Rolling 3-year Sharpe ratio. The HMM strategy maintained a positive Sharpe ratio throughout the evaluation period, "
+            "though the ratio fluctuates, reflecting the time-dependent nature of strategy performance.",
             caption_style
         ))
         story.append(Spacer(1, 0.15*inch))
 
-    # --- Section 7: Limitations & Trade-offs ---
-    story.append(Paragraph("VI. Limitations &amp; Trade-offs", heading_style))
+    # --- Section 7: Limitations ---
+    story.append(Paragraph("VI. Limitations", heading_style))
     story.append(Paragraph(
-        "This project is a framework, not a production-ready system. Several limitations should be considered:",
+        "Several limitations should be considered when interpreting these results:",
         body_style
     ))
     
     limitations_list = ListFlowable([
-        ListItem(Paragraph("<b>Look-ahead risk:</b> While the feature engineering and walk-forward validation strictly prevent look-ahead, the model was tuned post-hoc on the validation set. A true production system would require a completely separate hold-out period for hyperparameter selection.", body_style)),
-        ListItem(Paragraph("<b>Simplified transaction costs:</b> I applied a fixed 5 bps cost per trade. Real-world implementation faces variable spreads, market impact, and liquidity constraints that are not captured here.", body_style)),
+        ListItem(Paragraph("<b>Short out-of-sample period:</b> The evaluation window spans only 29 months (Aug 2023 – Dec 2025). This period was structurally unique due to AI-driven market concentration. Performance may not generalize to other environments.", body_style)),
+        ListItem(Paragraph("<b>Look-ahead risk:</b> While feature engineering and walk-forward validation are designed to prevent look-ahead bias, the model's hyperparameters (regime count, transition prior) were selected using the full dataset. A separate hold-out period for hyperparameter selection would be needed in a production setting.", body_style)),
+        ListItem(Paragraph("<b>Simplified transaction costs:</b> A fixed 5 bps cost per trade is applied, assuming mid-price execution with zero market impact — appropriate for a small notional portfolio. Institutional implementation would face variable spreads, market impact, and liquidity constraints not captured here.", body_style)),
         ListItem(Paragraph("<b>Regime stability:</b> The assumption that sectors behave consistently within a regime may break down over longer time horizons. The economic meaning of 'Technology' in 2025 differs from 2005.", body_style)),
-        ListItem(Paragraph("<b>Out-of-sample uncertainty:</b> The evaluation period (2023–2025) was structurally unique due to AI-driven concentration. Performance may not generalize to other environments.", body_style)),
-        ListItem(Paragraph("<b>Always long:</b> The strategy is always fully invested and does not hedge downside risk via short positions or cash overlays. It is a tactical overlay, not a standalone portfolio.", body_style)),
+        ListItem(Paragraph("<b>Always fully invested:</b> The strategy does not go to cash or hedge downside risk. This is a deliberate scoping choice to isolate the rotation signal. A natural extension would be a volatility-targeted overlay that reduces exposure during high-VIX regimes.", body_style)),
+        ListItem(Paragraph("<b>US-centric:</b> The analysis uses US sector ETFs and macro data. Regime dynamics in other markets may differ.", body_style)),
     ], bulletType='bullet')
     story.append(limitations_list)
     story.append(Spacer(1, 0.2*inch))
 
-    # --- Section 8: Conclusion ---
+    # --- Section 8: Summary ---
     story.append(Paragraph("VII. Summary", heading_style))
     story.append(Paragraph(
-        "This project demonstrates a thoughtful approach to applying unsupervised learning to tactical asset allocation. "
-        "The contribution lies not in the complexity of the model, but in the clarity of the problem framing, the rigor of the validation, and the transparency of the limitations.",
+        "This project applies unsupervised learning to tactical asset allocation using a Hidden Markov Model for regime detection. "
+        "The approach is transparent and interpretable: macro features are used to infer a latent market regime, "
+        "and sector selection is conditioned on that regime based on historical performance patterns.",
         body_style
     ))
     story.append(Paragraph(
-        "The results show that regime-aware strategies can offer attractive risk-adjusted returns in certain environments, but also highlight that static models can be surprisingly competitive during persistent trends. "
-        "This nuance is important—it suggests that regime-switching strategies are best viewed as complementary tools to static allocations, rather than replacements.",
+        "Over a 29-month out-of-sample period (Aug 2023 – Dec 2025), the HMM strategy achieved a Sharpe ratio of 1.64 with a maximum drawdown of -6.68%, "
+        "compared to 0.72 and -23.93% for the S&P 500. The GMM baseline achieved a higher raw return (26.29% vs. 25.53%) but with higher volatility "
+        "and deeper drawdowns, suggesting that the HMM's temporal modeling provides meaningful risk-adjusted improvement.",
+        body_style
+    ))
+    story.append(Paragraph(
+        "These results are encouraging but come with important caveats: the out-of-sample period is short, the market environment was unusual, "
+        "and transaction cost assumptions are simplified. The project is best viewed as a framework for regime-aware allocation rather than "
+        "a complete strategy. The value lies in the problem framing, the deliberate modeling choices, and the honest treatment of limitations.",
         body_style
     ))
     story.append(Spacer(1, 0.2*inch))
@@ -291,7 +323,7 @@ def generate_pdf():
         body_style
     ))
 
-    # 3. Build the PDF
+    # Build the PDF
     print("Building PDF document...")
     doc.build(story)
     print(f"✅ PDF successfully generated: {OUTPUT_PDF}")

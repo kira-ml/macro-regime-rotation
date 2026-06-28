@@ -71,3 +71,8 @@ print("EXPERIMENT SUMMARY")
 print("="*60)
 summary_df = pd.DataFrame(results_summary).round(4)
 print(summary_df.to_string(index=False))
+
+# Save results for reference in README
+from config import OUTPUT_DIR
+summary_df.to_csv(OUTPUT_DIR / "regime_count_experiment.csv", index=False)
+print(f"\nResults saved to {OUTPUT_DIR}/regime_count_experiment.csv")
