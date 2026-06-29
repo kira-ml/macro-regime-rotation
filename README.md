@@ -1,6 +1,6 @@
 # Macro-Informed Sector Rotation: A Regime-Switching Approach to Tactical Asset Allocation
 
-> **A Data Science project demonstrating macro-quantitative thinking, unsupervised regime detection, and rigorous strategy evaluation for tactical asset allocation.**
+> **A Data Science project exploring macro-quantitative thinking, unsupervised regime detection, and strategy evaluation for tactical asset allocation.**
 
 [![Python](https://img.shields.io/badge/Python-3.9+-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
